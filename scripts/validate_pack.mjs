@@ -21,6 +21,24 @@ function walk(directory) {
   });
 }
 
+function privacyText(absolute) {
+  const extension = path.extname(absolute).toLowerCase();
+  const archiveExtensions = new Set([".docx", ".xlsx", ".pptx"]);
+  if (archiveExtensions.has(extension)) {
+    const unpacked = spawnSync("unzip", ["-p", absolute], {
+      encoding: "utf8",
+      maxBuffer: 50 * 1024 * 1024,
+    });
+    if (unpacked.error || unpacked.status !== 0) {
+      errors.push(`Could not inspect Office archive: ${path.relative(root, absolute)}`);
+      return "";
+    }
+    return unpacked.stdout;
+  }
+
+  return fs.readFileSync(absolute).toString("utf8");
+}
+
 const start = read("00_START_ここから.md");
 const moduleReferences = [...start.matchAll(/`((?:0[1-9]|1[0-2])_[^`]+\.md)`/g)].map(
   (match) => match[1],
@@ -59,11 +77,28 @@ const bannedPatterns = [
   ["Anthropic schedule command", /\/schedule\b/],
 ];
 
+const privacyPatterns = [
+  ["email address", /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i],
+  [
+    "personal computer path",
+    /(?:\/Users\/|\/home\/[^/\s]+\/|[A-Z]:\\Users\\|file:\/\/\/(?:Users|home)\/|\/private\/var\/folders\/)/i,
+  ],
+];
+
 for (const absolute of walk(root).filter((file) => file.endsWith(".md"))) {
   const text = fs.readFileSync(absolute, "utf8");
   for (const [label, pattern] of bannedPatterns) {
     if (pattern.test(text)) {
       errors.push(`${label} remains in ${path.relative(root, absolute)}`);
+    }
+  }
+}
+
+for (const absolute of walk(root)) {
+  const content = privacyText(absolute);
+  for (const [label, pattern] of privacyPatterns) {
+    if (pattern.test(content)) {
+      errors.push(`${label} found in ${path.relative(root, absolute)}`);
     }
   }
 }
@@ -101,6 +136,26 @@ if (trackedOutputs.status !== 0) {
   errors.push("Could not inspect tracked workshop_output files.");
 } else if (trackedOutputs.stdout.trim()) {
   errors.push("workshop_output contains tracked files.");
+}
+
+const commitAuthors = spawnSync("git", ["log", "--format=%ae"], {
+  cwd: root,
+  encoding: "utf8",
+});
+if (commitAuthors.status !== 0) {
+  errors.push("Could not inspect commit author privacy.");
+} else {
+  const githubNoreply = ["noreply", "github.com"].join("@");
+  const unsafeAuthors = commitAuthors.stdout
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .filter(
+      (email) =>
+        !email.endsWith("@users.noreply.github.com") && email !== githubNoreply,
+    );
+  if (unsafeAuthors.length) {
+    errors.push("Commit history contains a non-noreply author email.");
+  }
 }
 
 if (errors.length) {
