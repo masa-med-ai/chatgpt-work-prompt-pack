@@ -1,0 +1,9 @@
+# ワークショップ中に参加者が作る成果物
+workshop_output/
+
+# 作業環境に存在するUnicode正規化違いの個人用デモ原稿
+CADe大腸内視鏡_原稿_検証デモ.md
+
+# macOS のシステムファイル
+.DS_Store
+**/.DS_Store

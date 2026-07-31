@@ -1,0 +1,4 @@
+interface:
+  display_name: "PubMed Reference Verifier"
+  short_description: "医学原稿の引用とPubMed書誌情報を照合して安全に修正"
+  default_prompt: "Use $pubmed-reference-verifier to verify the citations in this manuscript."

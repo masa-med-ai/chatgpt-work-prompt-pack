@@ -1,0 +1,4 @@
+interface:
+  display_name: "PubMed Evidence Discovery"
+  short_description: "PubMed検索・数値抽出・検証を再現可能な手順で実行"
+  default_prompt: "Use $pubmed-evidence-discovery to search PubMed and create a verified preliminary evidence table."
